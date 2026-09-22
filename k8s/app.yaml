@@ -1,0 +1,134 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: notes-app
+---
+# Exercise requirement: cluster-wide admin for the application pod.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: notes-app-cluster-admin
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: notes-app
+    namespace: default
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: notes-app-config
+data:
+  MONGO_HOST: "10.0.1.10"   # private IP of the MongoDB EC2 instance
+  MONGO_PORT: "27017"
+  MONGODB_DB: "notesapp"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notes-app
+  labels:
+    app: notes-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notes-app
+  template:
+    metadata:
+      labels:
+        app: notes-app
+    spec:
+      serviceAccountName: notes-app
+      # kubectl label node <node-name> app-node=notes-app
+      nodeSelector:
+        app-node: notes-app
+      initContainers:
+        - name: wait-for-mongo
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z -w 2 "$MONGO_HOST" "$MONGO_PORT"; do
+                echo "waiting for mongodb at $MONGO_HOST:$MONGO_PORT"
+                sleep 3
+              done
+              echo "mongodb is reachable"
+          envFrom:
+            - configMapRef:
+                name: notes-app-config
+      containers:
+        - name: notes-app
+          image: ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/notes-app:v1
+          ports:
+            - containerPort: 3000
+          env:
+            - name: MONGODB_URI
+              valueFrom:
+                secretKeyRef:
+                  name: notes-app-mongo
+                  key: uri
+            - name: MONGODB_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: notes-app-config
+                  key: MONGODB_DB
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notes-app
+spec:
+  type: ClusterIP
+  selector:
+    app: notes-app
+  ports:
+    - port: 80
+      targetPort: 3000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: notes-app
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+    alb.ingress.kubernetes.io/healthcheck-path: /healthz
+    # only needed if the public subnets are not tagged kubernetes.io/role/elb=1
+    # alb.ingress.kubernetes.io/subnets: subnet-aaa,subnet-bbb
+spec:
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: notes-app
+                port:
+                  number: 80

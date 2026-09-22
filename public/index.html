@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notes</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 16px/1.5 system-ui, sans-serif; max-width: 42rem; margin: 2rem auto; padding: 0 1rem; }
+  form { display: grid; gap: .5rem; margin-bottom: 2rem; }
+  input, textarea, button { font: inherit; padding: .5rem; }
+  li { border: 1px solid #8884; border-radius: 6px; padding: .75rem; margin-bottom: .75rem; list-style: none; }
+  li h3 { margin: 0 0 .25rem; }
+  li p { margin: 0 0 .5rem; white-space: pre-wrap; }
+  time { color: #8889; font-size: .85em; }
+  ul { padding: 0; }
+</style>
+</head>
+<body>
+<h1>Notes</h1>
+<form id="new-note">
+  <input id="title" placeholder="Title" required maxlength="200">
+  <textarea id="body" placeholder="Write something..." rows="3" maxlength="5000"></textarea>
+  <button>Add note</button>
+</form>
+<ul id="list"></ul>
+<script>
+const list = document.getElementById('list');
+
+async function load() {
+  const notes = await (await fetch('/api/notes')).json();
+  list.replaceChildren(...notes.map(render));
+}
+
+function render(note) {
+  const li = document.createElement('li');
+  const h3 = document.createElement('h3');
+  h3.textContent = note.title;
+  const p = document.createElement('p');
+  p.textContent = note.body;
+  const t = document.createElement('time');
+  t.textContent = new Date(note.createdAt).toLocaleString();
+  const del = document.createElement('button');
+  del.textContent = 'Delete';
+  del.onclick = async () => {
+    await fetch('/api/notes/' + note._id, { method: 'DELETE' });
+    load();
+  };
+  li.append(h3, p, t, ' ', del);
+  return li;
+}
+
+document.getElementById('new-note').onsubmit = async (e) => {
+  e.preventDefault();
+  const title = document.getElementById('title');
+  const body = document.getElementById('body');
+  await fetch('/api/notes', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ title: title.value, body: body.value }),
+  });
+  title.value = '';
+  body.value = '';
+  load();
+};
+
+load();
+</script>
+</body>
+</html>
