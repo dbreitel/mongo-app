@@ -8,11 +8,11 @@
     "dev": "tsc -w & node --watch dist/server.js"
   },
   "dependencies": {
-    "express": "^4.21.2",
+    "express": "^5.2.1",
     "mongodb": "^6.13.0"
   },
   "devDependencies": {
-    "@types/express": "^4.17.21",
+    "@types/express": "^5.0.6",
     "@types/node": "^20.17.0",
     "typescript": "^5.7.3"
   }
