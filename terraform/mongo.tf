@@ -13,16 +13,6 @@ data "aws_ami" "ubuntu_focal" {
   }
 }
 
-resource "random_password" "mongo_admin" {
-  length  = 24
-  special = false
-}
-
-resource "random_password" "mongo_app" {
-  length  = 24
-  special = false
-}
-
 resource "aws_security_group" "mongo" {
   name        = "${var.project}-mongo"
   description = "MongoDB VM"
@@ -78,13 +68,12 @@ resource "aws_instance" "mongo" {
   }
 
   user_data = templatefile("${path.module}/templates/mongo_user_data.sh.tpl", {
-    admin_user     = "mongoadmin"
-    admin_password = random_password.mongo_admin.result
-    app_user       = "notesapp"
-    app_password   = random_password.mongo_app.result
-    bucket_name    = aws_s3_bucket.backups.bucket
-    region         = var.region
-    backup_hour    = var.backup_hour_utc
+    admin_user         = "mongoadmin"
+    app_user           = "notesapp"
+    password_parameter = var.mongo_password_parameter
+    bucket_name        = aws_s3_bucket.backups.bucket
+    region             = var.region
+    backup_hour        = var.backup_hour_utc
   })
 
   tags = { Name = "${var.project}-mongo" }

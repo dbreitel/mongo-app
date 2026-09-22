@@ -22,7 +22,8 @@ kind: ConfigMap
 metadata:
   name: notes-app-config
 data:
-  MONGO_HOST: "10.0.1.10"   # private IP of the MongoDB EC2 instance
+  # replace with: terraform output mongo_private_ip  (expect 10.0.0.x)
+  MONGO_HOST: "REPLACE_ME"
   MONGO_PORT: "27017"
   MONGODB_DB: "notesapp"
 ---

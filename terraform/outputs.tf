@@ -32,15 +32,11 @@ output "backup_bucket_public_url" {
   value       = "https://${aws_s3_bucket.backups.bucket}.s3.${var.region}.amazonaws.com/"
 }
 
-output "mongodb_uri" {
-  description = "terraform output -raw mongodb_uri, then paste into k8s/secret.yaml"
-  sensitive   = true
-  value       = "mongodb://notesapp:${random_password.mongo_app.result}@${aws_instance.mongo.private_ip}:27017/notesapp?authSource=notesapp"
-}
-
-output "mongo_admin_password" {
-  sensitive = true
-  value     = random_password.mongo_admin.result
+# The password lives only in SSM, so terraform cannot build the URI without
+# pulling the secret into state. This prints the command that builds it.
+output "mongodb_uri_command" {
+  description = "run this to produce the URI for k8s/secret.yaml"
+  value       = "echo \"mongodb://notesapp:$(aws ssm get-parameter --name ${var.mongo_password_parameter} --with-decryption --region ${var.region} --profile ${var.aws_profile} --query Parameter.Value --output text)@${aws_instance.mongo.private_ip}:27017/notesapp?authSource=notesapp\""
 }
 
 output "cluster_name" {

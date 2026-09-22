@@ -44,6 +44,13 @@ variable "mongo_instance_type" {
   default = "t3.small"
 }
 
+# SecureString holding the notesapp database password. Read by the
+# instance at boot, never by terraform, so it stays out of state.
+variable "mongo_password_parameter" {
+  type    = string
+  default = "mng-pwd"
+}
+
 variable "backup_hour_utc" {
   type    = number
   default = 3

@@ -1,5 +1,7 @@
 node_modules
 dist
-k8s
 .git
+.github
+k8s
+terraform
 *.md
