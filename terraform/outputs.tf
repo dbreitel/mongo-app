@@ -42,3 +42,25 @@ output "mongo_admin_password" {
   sensitive = true
   value     = random_password.mongo_admin.result
 }
+
+output "cluster_name" {
+  value = aws_eks_cluster.this.name
+}
+
+output "cluster_endpoint" {
+  value = aws_eks_cluster.this.endpoint
+}
+
+output "kubeconfig_command" {
+  value = "aws eks update-kubeconfig --name ${aws_eks_cluster.this.name} --region ${var.region} --profile ${var.aws_profile}"
+}
+
+output "alb_controller_role_arn" {
+  description = "annotate the kube-system/aws-load-balancer-controller service account with this"
+  value       = aws_iam_role.alb_controller.arn
+}
+
+output "app_node_label" {
+  description = "matches the nodeSelector in k8s/app.yaml"
+  value       = "app-node=notes-app"
+}

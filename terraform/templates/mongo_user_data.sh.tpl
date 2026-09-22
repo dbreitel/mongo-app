@@ -2,7 +2,7 @@
 set -euxo pipefail
 exec > >(tee /var/log/user-data.log) 2>&1
 
-# Ubuntu 18.04 went EOL in Apr 2023 and the normal mirrors no longer
+# Ubuntu 20.04 went EOL in Apr 2025 and the normal mirrors no longer
 # carry it. Without this rewrite every apt-get below fails with 404.
 sed -i -e 's|archive.ubuntu.com|old-releases.ubuntu.com|g' \
        -e 's|security.ubuntu.com|old-releases.ubuntu.com|g' \
@@ -12,10 +12,10 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get install -y gnupg curl awscli cron
 
-# MongoDB 4.0, end of life Apr 2022
-curl -fsSL https://www.mongodb.org/static/pgp/server-4.0.asc | apt-key add -
-echo "deb [ arch=amd64 ] https://repo.mongodb.org/apt/ubuntu bionic/mongodb-org/4.0 multiverse" \
-  > /etc/apt/sources.list.d/mongodb-org-4.0.list
+# MongoDB 4.4, end of life Feb 2024
+curl -fsSL https://www.mongodb.org/static/pgp/server-4.4.asc | apt-key add -
+echo "deb [ arch=amd64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/4.4 multiverse" \
+  > /etc/apt/sources.list.d/mongodb-org-4.4.list
 apt-get update
 apt-get install -y mongodb-org
 

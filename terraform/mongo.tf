@@ -1,10 +1,10 @@
-data "aws_ami" "ubuntu_bionic" {
+data "aws_ami" "ubuntu_focal" {
   most_recent = true
   owners      = ["099720109477"] # Canonical
 
   filter {
     name   = "name"
-    values = ["ubuntu/images/hvm-ssd/ubuntu-bionic-18.04-amd64-server-*"]
+    values = ["ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-*"]
   }
 
   filter {
@@ -59,7 +59,7 @@ resource "aws_security_group" "mongo" {
 }
 
 resource "aws_instance" "mongo" {
-  ami                    = data.aws_ami.ubuntu_bionic.id
+  ami                    = data.aws_ami.ubuntu_focal.id
   instance_type          = var.mongo_instance_type
   subnet_id              = aws_subnet.public[0].id
   vpc_security_group_ids = [aws_security_group.mongo.id]

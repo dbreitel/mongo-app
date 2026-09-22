@@ -48,3 +48,31 @@ variable "backup_hour_utc" {
   type    = number
   default = 3
 }
+
+variable "cluster_name" {
+  type    = string
+  default = "test7-db"
+}
+
+variable "cluster_version" {
+  type    = string
+  default = "1.30"
+}
+
+variable "node_instance_type" {
+  type    = string
+  default = "t3.medium"
+}
+
+# EKS API server is reachable from this address only, plus from inside the
+# VPC. Set to your current public IP: curl -s https://checkip.amazonaws.com
+variable "node_desired_size" {
+  type        = number
+  default     = 2
+  description = "two nodes so the nodeSelector pin is meaningful"
+}
+
+variable "home_ip" {
+  type        = string
+  description = "your public IP in CIDR form, e.g. 203.0.113.7/32"
+}

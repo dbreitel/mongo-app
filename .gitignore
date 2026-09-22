@@ -10,6 +10,7 @@ k8s/secret.yaml
 !*.tfvars.example
 crash.log
 
-# documents the deliberate misconfigurations of live infrastructure,
-# and this repo is public
+# document the deliberate misconfigurations, the live IPs and the
+# demonstration steps for real infrastructure, and this repo is public
 terraform/README.md
+terraform/eks-run.md

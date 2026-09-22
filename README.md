@@ -23,13 +23,15 @@ db.createUser({
 
 ## Build and push
 
+Pushing to main builds and publishes the image automatically, see
+`.github/workflows/build-push.yaml`. To build and push by hand:
+
 ```bash
 npm install                      # local dev only, the image builds from package-lock.json
 # --platform matters: an Apple Silicon build will not run on amd64 EKS nodes
-docker build --platform linux/amd64 -t notes-app:v1 .
-aws ecr get-login-password --region <REGION> | docker login --username AWS --password-stdin <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com
-docker tag notes-app:v1 <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/notes-app:v1
-docker push <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/notes-app:v1
+docker build --platform linux/amd64 -t ghcr.io/dbreitel/mongo-app:latest .
+echo $GITHUB_TOKEN | docker login ghcr.io -u dbreitel --password-stdin
+docker push ghcr.io/dbreitel/mongo-app:latest
 ```
 
 ## Deploy
@@ -38,7 +40,7 @@ docker push <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/notes-app:v1
 kubectl label node <node-name> app-node=notes-app          # pins the pod to one node
 cp k8s/secret.example.yaml k8s/secret.yaml                 # fill in the real URI
 kubectl apply -f k8s/secret.yaml
-# edit k8s/app.yaml: image ref + MONGO_HOST (private IP of the mongo VM)
+# edit k8s/app.yaml: MONGO_HOST (private IP of the mongo VM)
 kubectl apply -f k8s/app.yaml
 kubectl get ingress notes-app -w                           # wait for the ALB address
 ```

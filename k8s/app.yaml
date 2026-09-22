@@ -63,7 +63,8 @@ spec:
                 name: notes-app-config
       containers:
         - name: notes-app
-          image: ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/notes-app:v1
+          # pin to a sha tag for a real deploy, :latest moves on every main push
+          image: ghcr.io/dbreitel/mongo-app:latest
           ports:
             - containerPort: 3000
           env:
