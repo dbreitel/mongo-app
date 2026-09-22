@@ -1,6 +1,8 @@
 name: build and push image
 
 on:
+  pull_request:
+    branches: [main]
   push:
     branches: [main]
     tags: ['v*']
@@ -30,7 +32,9 @@ jobs:
         with:
           context: .
           platforms: linux/amd64
-          push: true
+          # build and verify on PRs, publish only on main and tags
+          push: ${{ github.event_name != 'pull_request' }}
+          load: true
           tags: |
             ${{ env.IMAGE }}:latest
             ${{ env.IMAGE }}:${{ github.sha }}
@@ -39,4 +43,4 @@ jobs:
 
       - name: verify wizexercise.txt is in the pushed image
         run: |
-          docker run --rm --pull always "$IMAGE:${{ github.sha }}" cat /app/wizexercise.txt
+          docker run --rm "$IMAGE:${{ github.sha }}" cat /app/wizexercise.txt
