@@ -1,14 +1,14 @@
 version: 2
 updates:
-  - package-ecosystem: npm
-    directory: /
-    schedule:
-      interval: weekly
-  - package-ecosystem: docker
-    directory: /
-    schedule:
-      interval: weekly
+  # Version updates are kept ONLY for actions, because the workflow pins
+  # them by commit SHA and a pinned SHA is invisible to security updates.
+  # npm and docker version updates are deliberately off: Dependabot
+  # security updates still raise PRs there when a real CVE lands.
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
+      interval: monthly
+    open-pull-requests-limit: 3
+    groups:
+      actions:
+        patterns: ["*"]
