@@ -1,3 +1,15 @@
 node_modules
 dist
 k8s/secret.yaml
+
+# terraform state and vars hold generated passwords in cleartext
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+
+# documents the deliberate misconfigurations of live infrastructure,
+# and this repo is public
+terraform/README.md
