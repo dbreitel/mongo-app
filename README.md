@@ -9,7 +9,7 @@ None to create. MongoDB is schemaless and creates the `notesapp` database and th
 `notes` collection on the first insert. The app creates one index (`createdAt: -1`)
 at startup, which is idempotent.
 
-The only manual DB step is the user, since the exercise requires authentication:
+The only manual DB step is the user, since the database requires authentication:
 
 ```js
 // mongo shell, connected as the root user
@@ -44,13 +44,6 @@ kubectl get ingress notes-app -w                           # wait for the ALB ad
 ```
 
 ## Demo checklist
-
-**wizexercise.txt is in the image** (it is `COPY`d in the final Dockerfile stage):
-
-```bash
-kubectl exec deploy/notes-app -- cat /app/wizexercise.txt
-docker run --rm notes-app:v1 cat /app/wizexercise.txt      # same file, from the image
-```
 
 **Init container ran the netcat check first:**
 
