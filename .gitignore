@@ -1,6 +1,7 @@
 node_modules
 dist
 k8s/secret.yaml
+session.txt
 
 # terraform state and vars hold generated passwords in cleartext
 .terraform/
