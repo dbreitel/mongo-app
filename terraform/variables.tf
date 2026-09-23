@@ -61,9 +61,12 @@ variable "cluster_name" {
   default = "test7-db"
 }
 
+# 1.30 is no longer offered, and 1.31-1.33 are in extended support, which
+# bills the control plane at ~6x the standard rate. 1.36 is in standard
+# support until Aug 2027 and is closest to the local kubectl (1.37).
 variable "cluster_version" {
   type    = string
-  default = "1.30"
+  default = "1.36"
 }
 
 variable "node_instance_type" {

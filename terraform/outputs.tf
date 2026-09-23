@@ -34,9 +34,16 @@ output "backup_bucket_public_url" {
 
 # The password lives only in SSM, so terraform cannot build the URI without
 # pulling the secret into state. This prints the command that builds it.
+# The password MUST be percent-encoded: a literal @ : / ? # or % in it would
+# otherwise be parsed as URI syntax, and the driver would read the text after
+# the password's @ as the hostname.
 output "mongodb_uri_command" {
   description = "run this to produce the URI for k8s/secret.yaml"
-  value       = "echo \"mongodb://notesapp:$(aws ssm get-parameter --name ${var.mongo_password_parameter} --with-decryption --region ${var.region} --profile ${var.aws_profile} --query Parameter.Value --output text)@${aws_instance.mongo.private_ip}:27017/notesapp?authSource=notesapp\""
+  value       = <<-EOT
+    PW=$(aws ssm get-parameter --name ${var.mongo_password_parameter} --with-decryption --profile ${var.aws_profile} --region ${var.region} --query Parameter.Value --output text)
+    ENC=$(python3 -c 'import sys,urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$PW")
+    echo "mongodb://notesapp:$ENC@${aws_instance.mongo.private_ip}:27017/notesapp?authSource=notesapp"
+  EOT
 }
 
 output "cluster_name" {

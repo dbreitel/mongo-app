@@ -5,8 +5,10 @@
 
 resource "aws_iam_policy" "alb_controller" {
   name = "${var.cluster_name}-alb-controller"
-  # vendored from aws-load-balancer-controller v2.8.2 rather than fetched
-  # at apply time, so the permissions granted are reviewable in git
+  # Vendored from aws-load-balancer-controller v3.5.0 rather than fetched at
+  # apply time, so the permissions granted are reviewable in git. This MUST
+  # track the chart version actually installed: v3 added 9 actions that v2.8.2
+  # lacked, and the controller fails to reconcile an Ingress without them.
   policy = file("${path.module}/policies/alb-controller-iam-policy.json")
 }
 

@@ -2,12 +2,12 @@
 set -euxo pipefail
 exec > >(tee /var/log/user-data.log) 2>&1
 
-# Ubuntu 20.04 went EOL in Apr 2025 and the normal mirrors no longer
-# carry it. Without this rewrite every apt-get below fails with 404.
-sed -i -e 's|archive.ubuntu.com|old-releases.ubuntu.com|g' \
-       -e 's|security.ubuntu.com|old-releases.ubuntu.com|g' \
-       /etc/apt/sources.list
-
+# NOTE: do NOT repoint apt at old-releases.ubuntu.com. 20.04 left standard
+# support in Apr 2025 but is in ESM, so focal, focal-updates and
+# focal-security are all still served by the normal archive. old-releases
+# carries no focal at all, and the AWS AMI uses a regional mirror
+# (us-east-1.ec2.archive.ubuntu.com) that a naive rewrite turns into a
+# hostname that does not resolve. Both break every apt-get below.
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get install -y gnupg curl awscli cron
