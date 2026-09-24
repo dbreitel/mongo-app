@@ -86,3 +86,9 @@ variable "home_ip" {
   type        = string
   description = "your public IP in CIDR form, e.g. 203.0.113.7/32"
 }
+
+variable "github_repository" {
+  type        = string
+  default     = "dbreitel/mongo-app"
+  description = "owner/repo, used in the OIDC trust condition"
+}

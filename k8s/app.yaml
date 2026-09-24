@@ -23,7 +23,7 @@ metadata:
   name: notes-app-config
 data:
   # replace with: terraform output mongo_private_ip  (expect 10.0.0.x)
-  MONGO_HOST: "REPLACE_ME"
+  MONGO_HOST: "10.0.0.246"
   MONGO_PORT: "27017"
   MONGODB_DB: "notesapp"
 ---

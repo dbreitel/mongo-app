@@ -1,0 +1,47 @@
+# Outpost requirement: prove a pod can list and get objects from the backup
+# bucket without traversing the public internet.
+#
+# The private path comes from the S3 gateway endpoint (terraform/vpc_endpoints.tf).
+# The identity comes from IRSA (terraform/s3_reader_irsa.tf), which grants only
+# s3:ListBucket and s3:GetObject on that one bucket.
+#
+# Before applying:
+#   kubectl annotate sa s3-reader \
+#     eks.amazonaws.com/role-arn=$(terraform output -raw s3_reader_role_arn) --overwrite
+# or replace ROLE_ARN below.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: s3-reader
+  annotations:
+    eks.amazonaws.com/role-arn: ROLE_ARN
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: s3-reader
+  labels:
+    app: s3-reader
+spec:
+  serviceAccountName: s3-reader
+  # pulled from AWS's own registry rather than docker.io/amazon/aws-cli,
+  # which rate limits anonymous pulls and fails intermittently on EKS
+  containers:
+    - name: aws-cli
+      image: public.ecr.aws/aws-cli/aws-cli:latest
+      command: ["sleep", "infinity"]
+      env:
+        - name: AWS_REGION
+          value: us-east-1
+      securityContext:
+        allowPrivilegeEscalation: false
+        runAsNonRoot: false
+        capabilities:
+          drop: ["ALL"]
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          cpu: 200m
+          memory: 256Mi

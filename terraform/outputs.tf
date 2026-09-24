@@ -67,3 +67,18 @@ output "app_node_label" {
   description = "matches the nodeSelector in k8s/app.yaml"
   value       = "app-node=notes-app"
 }
+
+output "s3_vpc_endpoint_id" {
+  description = "gateway endpoint that keeps pod-to-S3 traffic off the internet"
+  value       = aws_vpc_endpoint.s3.id
+}
+
+output "s3_reader_role_arn" {
+  description = "annotate the default/s3-reader service account with this"
+  value       = aws_iam_role.s3_reader.arn
+}
+
+output "github_deploy_role_arn" {
+  description = "set as the AWS_DEPLOY_ROLE repository variable in GitHub"
+  value       = aws_iam_role.github_deploy.arn
+}
