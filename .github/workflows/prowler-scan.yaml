@@ -1,0 +1,99 @@
+name: prowler cspm scan
+
+# Manual only. Prowler scans the live account, so it is pointless on a
+# commit and noisy on a schedule during build-and-destroy cycles.
+on:
+  workflow_dispatch:
+    inputs:
+      severity:
+        description: 'Severities to include in the report'
+        type: choice
+        default: 'critical,high'
+        options:
+          - 'critical,high'
+          - 'critical,high,medium'
+          - 'critical,high,medium,low,informational'
+      region:
+        description: 'Region to scan (blank scans all regions, much slower)'
+        type: string
+        default: 'us-east-1'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  prowler:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_PROWLER_ROLE }}
+          aws-region: us-east-1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: install prowler
+        run: |
+          pip install --upgrade pip
+          pip install prowler
+          prowler --version
+
+      - name: run prowler
+        run: |
+          # exit code 3 means "findings were returned", which is the normal
+          # case here and must not fail the job
+          set +e
+          prowler aws \
+            --output-formats html csv json-ocsf \
+            --output-directory output \
+            --output-filename "prowler-${{ github.run_id }}" \
+            --severity ${{ inputs.severity }} \
+            ${{ inputs.region && format('--region {0}', inputs.region) || '' }} \
+            --no-banner
+          code=$?
+          echo "prowler exited $code"
+          # 0 = no findings, 3 = findings present. Anything else is a real error.
+          if [ "$code" -ne 0 ] && [ "$code" -ne 3 ]; then exit "$code"; fi
+
+      - name: summarise
+        if: always()
+        run: |
+          {
+            echo "## Prowler scan"
+            echo ""
+            echo "Severities: \`${{ inputs.severity }}\`  Region: \`${{ inputs.region || 'all' }}\`"
+            echo ""
+            CSV=$(ls output/*.csv 2>/dev/null | head -1)
+            if [ -n "$CSV" ]; then
+              echo "| Status | Count |"
+              echo "|---|---|"
+              python3 - "$CSV" <<'PY'
+          import csv, sys, collections
+          counts = collections.Counter()
+          with open(sys.argv[1], newline='', encoding='utf-8', errors='replace') as fh:
+              for row in csv.DictReader(fh, delimiter=';'):
+                  key = row.get('STATUS') or row.get('status') or 'UNKNOWN'
+                  counts[key] += 1
+          for k, v in counts.most_common():
+              print(f"| {k} | {v} |")
+          PY
+            else
+              echo "no CSV produced"
+            fi
+            echo ""
+            echo "Full HTML report is in the run artifacts."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: upload report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: prowler-report-${{ github.run_id }}
+          path: output/
+          retention-days: 30

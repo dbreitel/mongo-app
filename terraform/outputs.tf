@@ -82,3 +82,13 @@ output "github_deploy_role_arn" {
   description = "set as the AWS_DEPLOY_ROLE repository variable in GitHub"
   value       = aws_iam_role.github_deploy.arn
 }
+
+output "security_hub_console" {
+  description = "findings appear here 30 to 60 minutes after apply"
+  value       = "https://${var.region}.console.aws.amazon.com/securityhub/home?region=${var.region}#/findings"
+}
+
+output "prowler_role_arn" {
+  description = "set as the AWS_PROWLER_ROLE repository variable in GitHub"
+  value       = aws_iam_role.github_prowler.arn
+}

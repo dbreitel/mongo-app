@@ -20,10 +20,28 @@ resource "aws_iam_role_policy_attachment" "cluster" {
 
 # ---------- cluster ----------
 
+# Created explicitly so retention is controlled. If EKS creates this group
+# itself the logs are kept forever, which costs money quietly.
+resource "aws_cloudwatch_log_group" "eks" {
+  name              = "/aws/eks/${var.cluster_name}/cluster"
+  retention_in_days = 30
+}
+
 resource "aws_eks_cluster" "this" {
   name     = var.cluster_name
   version  = var.cluster_version
   role_arn = aws_iam_role.cluster.arn
+
+  # EXERCISE REQUIREMENT: control plane audit logging.
+  # "audit" is the one the requirement names, the rest give the full
+  # control plane picture: who called what, and whether it was allowed.
+  enabled_cluster_log_types = [
+    "api",
+    "audit",
+    "authenticator",
+    "controllerManager",
+    "scheduler",
+  ]
 
   vpc_config {
     # REQUIREMENT: cluster in private subnets. The control plane ENIs and
@@ -44,7 +62,10 @@ resource "aws_eks_cluster" "this" {
     bootstrap_cluster_creator_admin_permissions = true
   }
 
-  depends_on = [aws_iam_role_policy_attachment.cluster]
+  depends_on = [
+    aws_iam_role_policy_attachment.cluster,
+    aws_cloudwatch_log_group.eks,
+  ]
 }
 
 # ---------- node IAM ----------
