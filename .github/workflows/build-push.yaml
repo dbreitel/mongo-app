@@ -64,31 +64,66 @@ jobs:
             sh -c 'test -s /app/wizexercise.txt && cat /app/wizexercise.txt'
 
       # Reports only. The environment carries deliberate weaknesses, so a
-      # hard gate here would keep the pipeline permanently red. Findings go
-      # to the Security tab instead of blocking the build.
+      # hard gate here would keep the pipeline permanently red.
       - name: scan image with trivy
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ env.IMAGE }}:${{ github.sha }}
-          format: sarif
-          output: trivy-image.sarif
+          format: json
+          output: trivy-image-full.json
           severity: HIGH,CRITICAL
           exit-code: '0'
 
-      - name: upload image findings
-        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
-        if: always()
-        continue-on-error: true
-        with:
-          sarif_file: trivy-image.sarif
-          category: trivy-image
-
-      - name: findings summary
+      # Trivy emits an entry per scanned target including the clean ones,
+      # which is mostly noise. Keep only targets that actually have findings.
+      - name: reduce report to findings only
         if: always()
         run: |
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-            aquasec/trivy:latest image --severity HIGH,CRITICAL --quiet \
-            --format table "$IMAGE:${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+          jq '{
+            image:     .ArtifactName,
+            scanned_at: .CreatedAt,
+            severity:  "HIGH,CRITICAL",
+            finding_count: ([.Results[]?.Vulnerabilities[]?] | length),
+            results: [
+              .Results[]?
+              | select((.Vulnerabilities // []) | length > 0)
+              | {
+                  target: .Target,
+                  type:   .Type,
+                  vulnerabilities: [
+                    .Vulnerabilities[]
+                    | {
+                        id: .VulnerabilityID,
+                        severity: .Severity,
+                        package: .PkgName,
+                        installed: .InstalledVersion,
+                        fixed: (.FixedVersion // "no fix available"),
+                        path: (.PkgPath // "os package"),
+                        title: .Title,
+                        url: .PrimaryURL
+                      }
+                  ]
+                }
+            ]
+          }' trivy-image-full.json > trivy-image-findings.json
+
+          echo "## Image scan (HIGH, CRITICAL)" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Findings: $(jq -r .finding_count trivy-image-findings.json)" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '| Severity | CVE | Package | Installed | Fixed |' >> "$GITHUB_STEP_SUMMARY"
+          echo '|---|---|---|---|---|' >> "$GITHUB_STEP_SUMMARY"
+          jq -r '.results[].vulnerabilities[]
+            | "| \(.severity) | \(.id) | \(.package) | \(.installed) | \(.fixed) |"' \
+            trivy-image-findings.json >> "$GITHUB_STEP_SUMMARY"
+
+      - name: upload scan report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: trivy-image-report-${{ github.sha }}
+          path: trivy-image-findings.json
+          retention-days: 30
 
   # Opt in only. Runs on a manual dispatch with deploy=true, so an ordinary
   # push to main builds and publishes but never touches the cluster.
