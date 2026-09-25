@@ -1,0 +1,124 @@
+name: iac destroy
+
+# Manual only, with a typed confirmation. This deletes the whole
+# environment including every database backup in the bucket, because
+# force_destroy is set on it.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type destroy to confirm. Anything else aborts.'
+        type: string
+        required: true
+      home_ip:
+        description: 'CIDR (blank uses the HOME_IP repo variable). Needed to build the plan.'
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  TF_VERSION: '1.5.7'
+  AWS_REGION: us-east-1
+  STATE_BUCKET: notes-app-tfstate-921017758824
+  STATE_KEY: notes-app/terraform.tfstate
+  LOCK_TABLE: notes-app-tfstate-lock
+
+jobs:
+  destroy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: production
+    steps:
+      - name: check confirmation
+        run: |
+          if [ "${{ inputs.confirm }}" != "destroy" ]; then
+            echo "::error::confirmation was '${{ inputs.confirm }}', expected 'destroy'"
+            exit 1
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_TERRAFORM_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: init
+        working-directory: terraform
+        run: |
+          terraform init \
+            -backend-config="bucket=$STATE_BUCKET" \
+            -backend-config="key=$STATE_KEY" \
+            -backend-config="region=$AWS_REGION" \
+            -backend-config="dynamodb_table=$LOCK_TABLE" \
+            -backend-config="encrypt=true"
+
+      # The ALB is created by the in-cluster controller, so it is not in
+      # terraform state. Left behind, its network interfaces keep the
+      # subnets alive and the VPC delete fails with DependencyViolation.
+      # Deleted through the AWS API because the private EKS endpoint is
+      # not reachable from a hosted runner.
+      - name: delete load balancers left by the cluster
+        run: |
+          set -euo pipefail
+          VPC=$(aws ec2 describe-vpcs --filters "Name=tag:Project,Values=notes-app" \
+                  --query 'Vpcs[0].VpcId' --output text 2>/dev/null || echo None)
+          if [ "$VPC" = "None" ] || [ -z "$VPC" ]; then
+            echo "no tagged VPC found, nothing to clean"; exit 0
+          fi
+          echo "vpc: $VPC"
+
+          for ARN in $(aws elbv2 describe-load-balancers \
+                --query "LoadBalancers[?VpcId=='$VPC'].LoadBalancerArn" --output text); do
+            echo "deleting load balancer $ARN"
+            aws elbv2 delete-load-balancer --load-balancer-arn "$ARN"
+          done
+
+          for TG in $(aws elbv2 describe-target-groups \
+                --query "TargetGroups[?VpcId=='$VPC'].TargetGroupArn" --output text 2>/dev/null || true); do
+            echo "deleting target group $TG"
+            aws elbv2 delete-target-group --target-group-arn "$TG" || true
+          done
+
+          # interfaces linger for a bit after the LB goes
+          for i in $(seq 1 30); do
+            LEFT=$(aws ec2 describe-network-interfaces \
+              --filters "Name=vpc-id,Values=$VPC" "Name=description,Values=ELB app/*" \
+              --query 'length(NetworkInterfaces)' --output text)
+            [ "$LEFT" = "0" ] && { echo "load balancer interfaces cleared"; break; }
+            echo "waiting on $LEFT interface(s)"; sleep 10
+          done
+
+      - name: resolve home_ip
+        run: |
+          IP="${{ inputs.home_ip }}"
+          [ -z "$IP" ] && IP="${{ vars.HOME_IP }}"
+          [ -z "$IP" ] && IP="0.0.0.0/32"   # value is irrelevant when destroying
+          echo "TF_VAR_home_ip=$IP" >> "$GITHUB_ENV"
+
+      - name: destroy
+        working-directory: terraform
+        run: terraform destroy -input=false -auto-approve -no-color | tail -30
+
+      - name: confirm nothing is left
+        if: always()
+        run: |
+          {
+            echo "## Post-destroy check"
+            echo '```'
+            echo "clusters:  $(aws eks list-clusters --query 'clusters' --output text)"
+            echo "instances: $(aws ec2 describe-instances --filters Name=instance-state-name,Values=running --query 'length(Reservations[].Instances[])' --output text)"
+            echo "load bal.: $(aws elbv2 describe-load-balancers --query 'length(LoadBalancers)' --output text)"
+            echo "nat gws:   $(aws ec2 describe-nat-gateways --filter Name=state,Values=available --query 'length(NatGateways)' --output text)"
+            echo "eips:      $(aws ec2 describe-addresses --query 'length(Addresses)' --output text)"
+            echo '```'
+            echo "The state bucket and lock table are intentionally left in place."
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,7 @@
+# cp to backend.hcl, then: terraform init -backend-config=backend.hcl
+bucket         = "notes-app-tfstate-921017758824"
+key            = "notes-app/terraform.tfstate"
+region         = "us-east-1"
+dynamodb_table = "notes-app-tfstate-lock"
+encrypt        = true
+profile        = "test7"

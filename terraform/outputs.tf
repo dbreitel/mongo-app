@@ -92,3 +92,8 @@ output "prowler_role_arn" {
   description = "set as the AWS_PROWLER_ROLE repository variable in GitHub"
   value       = aws_iam_role.github_prowler.arn
 }
+
+output "terraform_pipeline_role_arn" {
+  description = "set as the AWS_TERRAFORM_ROLE repository variable in GitHub"
+  value       = aws_iam_role.github_terraform.arn
+}
