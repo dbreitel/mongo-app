@@ -33,9 +33,11 @@ resource "aws_iam_role" "github_prowler" {
 # The pair AWS documents for Prowler. Both are read-only: no mutating
 # action is granted, so the scanner cannot change what it audits.
 resource "aws_iam_role_policy_attachment" "prowler" {
+  # ViewOnlyAccess lives under job-function/, unlike SecurityAudit.
+  # The bare arn:aws:iam::aws:policy/ViewOnlyAccess does not exist.
   for_each = toset([
     "arn:aws:iam::aws:policy/SecurityAudit",
-    "arn:aws:iam::aws:policy/ViewOnlyAccess",
+    "arn:aws:iam::aws:policy/job-function/ViewOnlyAccess",
   ])
   role       = aws_iam_role.github_prowler.name
   policy_arn = each.value

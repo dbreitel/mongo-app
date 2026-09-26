@@ -9,6 +9,8 @@ session.txt
 *.tfstate.*
 *.tfvars
 !*.tfvars.example
+# machine-specific backend settings (profile name, bucket)
+terraform/backend.hcl
 crash.log
 
 # document the deliberate misconfigurations, the live IPs and the

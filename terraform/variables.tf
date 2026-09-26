@@ -87,6 +87,16 @@ variable "home_ip" {
   description = "your public IP in CIDR form, e.g. 203.0.113.7/32"
 }
 
+# Additional CIDRs allowed to reach the EKS API. Useful when working from
+# more than one network: keep home, office and hotspot all allowed so a
+# change of location does not lock kubectl out.
+# Put them in terraform.tfvars, which is gitignored, not in a .tf file.
+# EKS allows up to 40 entries in total.
+variable "extra_allowed_cidrs" {
+  type    = list(string)
+  default = []
+}
+
 variable "github_repository" {
   type        = string
   default     = "dbreitel/mongo-app"

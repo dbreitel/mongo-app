@@ -1,0 +1,6 @@
+# cp to terraform.tfvars (gitignored) and list every network you work from.
+# Keeping them all allowed means changing location does not break kubectl.
+extra_allowed_cidrs = [
+  # "203.0.113.7/32",   # office
+  # "198.51.100.22/32", # phone hotspot
+]

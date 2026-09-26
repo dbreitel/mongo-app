@@ -52,7 +52,7 @@ resource "aws_eks_cluster" "this" {
     # public access narrowed to one address for kubectl from your laptop
     endpoint_private_access = true
     endpoint_public_access  = true
-    public_access_cidrs     = [var.home_ip]
+    public_access_cidrs     = distinct(concat([var.home_ip], var.extra_allowed_cidrs))
   }
 
   # lets the IAM principal running terraform use kubectl immediately,

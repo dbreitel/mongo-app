@@ -11,7 +11,7 @@ on:
         type: string
         required: true
       home_ip:
-        description: 'CIDR (blank uses the HOME_IP repo variable). Needed to build the plan.'
+        description: 'Optional. Only needed to build the plan, the value is irrelevant when destroying.'
         type: string
         default: ''
 
@@ -22,6 +22,10 @@ permissions:
 env:
   TF_VERSION: '1.5.7'
   AWS_REGION: us-east-1
+  # IAM role ARNs are deterministic (arn:...:role/<fixed name>), so they
+  # survive a destroy and rebuild unchanged. Hardcoded rather than kept in
+  # a repo variable, where an unset value silently becomes an empty input.
+  TERRAFORM_ROLE: arn:aws:iam::921017758824:role/notes-app-github-terraform
   STATE_BUCKET: notes-app-tfstate-921017758824
   STATE_KEY: notes-app/terraform.tfstate
   LOCK_TABLE: notes-app-tfstate-lock
@@ -43,7 +47,7 @@ jobs:
 
       - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
-          role-to-assume: ${{ vars.AWS_TERRAFORM_ROLE }}
+          role-to-assume: ${{ env.TERRAFORM_ROLE }}
           aws-region: ${{ env.AWS_REGION }}
 
       - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
@@ -100,8 +104,8 @@ jobs:
       - name: resolve home_ip
         run: |
           IP="${{ inputs.home_ip }}"
-          [ -z "$IP" ] && IP="${{ vars.HOME_IP }}"
-          [ -z "$IP" ] && IP="0.0.0.0/32"   # value is irrelevant when destroying
+          # nothing is created by a destroy, so any syntactically valid CIDR works
+          [ -z "$IP" ] && IP="0.0.0.0/32"
           echo "TF_VAR_home_ip=$IP" >> "$GITHUB_ENV"
 
       - name: destroy

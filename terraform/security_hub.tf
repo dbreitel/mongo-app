@@ -102,12 +102,23 @@ resource "aws_securityhub_account" "this" {
 
 # The standard that will flag this environment's deliberate weaknesses:
 # public S3, SSH from 0.0.0.0/0, IMDSv1, unencrypted EBS, admin roles.
+# The provider waits for the subscription to reach READY, and the default
+# wait is 3 minutes. Enabling a standard routinely takes longer than that
+# because Config has to record the resources it evaluates first.
 resource "aws_securityhub_standards_subscription" "fsbp" {
   standards_arn = "arn:aws:securityhub:${var.region}::standards/aws-foundational-security-best-practices/v/1.0.0"
   depends_on    = [aws_securityhub_account.this]
+
+  timeouts {
+    create = "20m"
+  }
 }
 
 resource "aws_securityhub_standards_subscription" "cis" {
   standards_arn = "arn:aws:securityhub:${var.region}::standards/cis-aws-foundations-benchmark/v/3.0.0"
   depends_on    = [aws_securityhub_account.this]
+
+  timeouts {
+    create = "20m"
+  }
 }

@@ -136,10 +136,12 @@ jobs:
     permissions:
       contents: read
       id-token: write
+    env:
+      DEPLOY_ROLE: arn:aws:iam::921017758824:role/test7-db-github-deploy
     steps:
       - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
-          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE }}
+          role-to-assume: ${{ env.DEPLOY_ROLE }}
           aws-region: us-east-1
 
       - name: kubeconfig
